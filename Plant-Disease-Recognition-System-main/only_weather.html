@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 { margin: 10px 0 20px; }
+    .weather-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+    }
+    .weather-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 15px;
+      width: 250px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.3s ease-in-out;
+    }
+    .weather-card img {
+      width: 80px;
+      display: none; /* hidden until loaded */
+    }
+    .temp-main {
+      font-size: 2em;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .temp-secondary {
+      font-size: 1em;
+      margin: 5px 0;
+    }
+    .forecast-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+    .forecast-item {
+      min-width: 80px;
+      text-align: center;
+    }
+    .forecast-item img {
+      width: 50px;
+    }
+    .loading-shimmer {
+      height: 20px;
+      width: 100px;
+      background: linear-gradient(90deg, #cccccc 25%, #e0e0e0 50%, #cccccc 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 5px;
+      margin: 5px 0;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .error {
+      color: #ff6b6b;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    @media (max-width: 768px) {
+      .weather-card { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Weather Dashboard</h1>
+    <div class="weather-section">
+      <!-- Today Card -->
+      <div class="weather-card" id="today-card">
+        <h2 id="today-title">Today</h2>
+        <p id="today-date">Loading...</p>
+        <img id="today-icon" alt="weather icon" />
+        <p class="temp-main" id="today-temp"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="today-summary-temp-high"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="today-summary-temp-low"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="today-humidity"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="today-wind"><div class="loading-shimmer"></div></p>
+      </div>
+
+      <!-- Tomorrow Card -->
+      <div class="weather-card" id="tomorrow-card">
+        <h2 id="tomorrow-title">Tomorrow</h2>
+        <p id="tomorrow-date">Loading...</p>
+        <img id="tomorrow-icon" alt="weather icon" />
+        <p class="temp-main" id="tomorrow-temp"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="tomorrow-summary-temp-high"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary" id="tomorrow-summary-temp-low"><div class="loading-shimmer"></div></p>
+      </div>
+    </div>
+
+    <!-- Hourly Forecast -->
+    <div class="weather-card">
+      <h2>Hourly Forecast</h2>
+      <div class="forecast-strip" id="hourly-forecast">
+        <div class="loading-shimmer"></div>
+        <div class="loading-shimmer"></div>
+        <div class="loading-shimmer"></div>
+      </div>
+    </div>
+
+    <!-- Part of Day Forecast -->
+    <div class="weather-card">
+      <h2>Part of Day Forecast</h2>
+      <div id="part-day-forecast">
+        <p class="temp-secondary"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary"><div class="loading-shimmer"></div></p>
+        <p class="temp-secondary"><div class="loading-shimmer"></div></p>
+      </div>
+    </div>
+
+    <!-- 7-Day Forecast -->
+    <div class="weather-card">
+      <h2>7-Day Forecast</h2>
+      <div id="seven-day-forecast">
+        <div class="loading-shimmer"></div>
+        <div class="loading-shimmer"></div>
+        <div class="loading-shimmer"></div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <p id="error-message" class="error" style="display:none;"></p>
+  </div>
+
+  <script>
+    const API_KEY = "75d75f58373e6138de67407234184096";  // replace with your OpenWeatherMap key
+    const CITY_NAME = "New York";
+
+    async function fetchWeather() {
+      try {
+        const [current, forecast] = await Promise.all([
+          fetch(`https://api.openweathermap.org/data/2.5/weather?q=${CITY_NAME}&appid=${API_KEY}&units=metric`).then(r=>r.json()),
+          fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${CITY_NAME}&appid=${API_KEY}&units=metric`).then(r=>r.json())
+        ]);
+        if (current.cod !== 200) throw new Error(current.message);
+        updateToday(current);
+        updateTomorrow(forecast);
+        updateHourly(forecast);
+        updatePartDay(forecast);
+        updateSevenDay(forecast);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function updateToday(data) {
+      document.getElementById("today-date").textContent = new Date().toDateString();
+      document.getElementById("today-icon").src = `http://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+      document.getElementById("today-temp").textContent = `${Math.round(data.main.temp)}°C`;
+      document.getElementById("today-summary-temp-high").textContent = `High: ${Math.round(data.main.temp_max)}°C`;
+      document.getElementById("today-summary-temp-low").textContent = `Low: ${Math.round(data.main.temp_min)}°C`;
+      document.getElementById("today-humidity").textContent = `Humidity: ${data.main.humidity}%`;
+      document.getElementById("today-wind").textContent = `Wind: ${data.wind.speed} m/s`;
+      document.querySelectorAll('#today-card .loading-shimmer').forEach(el => el.remove());
+      document.getElementById("today-icon").style.display = "block";
+    }
+
+    function updateTomorrow(data) {
+      const t = new Date(); t.setDate(t.getDate()+1);
+      document.getElementById("tomorrow-date").textContent = t.toDateString();
+      const tomorrowData = data.list.find(item => new Date(item.dt_txt).getDate() === t.getDate());
+      if (tomorrowData) {
+        document.getElementById("tomorrow-icon").src = `http://openweathermap.org/img/wn/${tomorrowData.weather[0].icon}@2x.png`;
+        document.getElementById("tomorrow-temp").textContent = `${Math.round(tomorrowData.main.temp)}°C`;
+        document.getElementById("tomorrow-summary-temp-high").textContent = `High: ${Math.round(tomorrowData.main.temp_max)}°C`;
+        document.getElementById("tomorrow-summary-temp-low").textContent = `Low: ${Math.round(tomorrowData.main.temp_min)}°C`;
+        document.querySelectorAll('#tomorrow-card .loading-shimmer').forEach(el => el.remove());
+        document.getElementById("tomorrow-icon").style.display = "block";
+      }
+    }
+
+    function updateHourly(data) {
+      const cont = document.getElementById("hourly-forecast");
+      cont.innerHTML = "";
+      data.list.slice(0,6).forEach(item => {
+        const d = new Date(item.dt_txt);
+        const div = document.createElement("div");
+        div.classList.add("forecast-item");
+        div.innerHTML = `
+          <p>${d.getHours()}:00</p>
+          <img src="http://openweathermap.org/img/wn/${item.weather[0].icon}.png"/>
+          <p>${Math.round(item.main.temp)}°C</p>`;
+        cont.appendChild(div);
+      });
+    }
+
+    function updatePartDay(data) {
+      const cont = document.getElementById("part-day-forecast");
+      cont.innerHTML = "";
+      ["Morning","Afternoon","Evening"].forEach((label,i) => {
+        const item = data.list[i*3];
+        if(item){
+          const p = document.createElement("p");
+          p.className="temp-secondary";
+          p.textContent = `${label}: ${Math.round(item.main.temp)}°C`;
+          cont.appendChild(p);
+        }
+      });
+    }
+
+    function updateSevenDay(data) {
+      const cont = document.getElementById("seven-day-forecast");
+      cont.innerHTML = "";
+      const days = {};
+      data.list.forEach(item => {
+        const d = new Date(item.dt_txt).toDateString();
+        if (!days[d]) days[d] = {temp: item.main.temp, icon: item.weather[0].icon};
+      });
+      Object.entries(days).slice(0,7).forEach(([day,info])=>{
+        const div = document.createElement("div");
+        div.className="forecast-item";
+        div.innerHTML = `<p>${day.split(" ")[0]}</p>
+          <img src="http://openweathermap.org/img/wn/${info.icon}.png"/>
+          <p>${Math.round(info.temp)}°C</p>`;
+        cont.appendChild(div);
+      });
+    }
+
+    function showError(msg) {
+      document.getElementById("error-message").textContent = "Error: " + msg;
+      document.getElementById("error-message").style.display = "block";
+    }
+
+    fetchWeather();
+  </script>
+</body>
+</html>
